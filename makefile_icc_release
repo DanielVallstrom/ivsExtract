@@ -1,0 +1,9 @@
+# Makefile for ivsExtract using icc in release mode.
+
+# Set the compiler.
+CC = icc
+
+# Set mode.
+MODE = release
+
+include makefile_core

@@ -1,0 +1,12 @@
+# Makefile for ivsExtract using gcc in profile mode.
+
+# Set the compiler.
+CC = gcc
+
+# Set mode.
+MODE = profile
+
+# Set dynamic/static mode to static. (Default is dynamic.)
+DYNMODE = static
+
+include makefile_core

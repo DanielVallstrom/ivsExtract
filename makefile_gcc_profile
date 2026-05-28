@@ -1,0 +1,9 @@
+# Makefile for ivsExtract using gcc in profile mode.
+
+# Set the compiler.
+CC = gcc
+
+# Set mode.
+MODE = profile
+
+include makefile_core

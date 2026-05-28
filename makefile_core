@@ -1,0 +1,433 @@
+# Core makefile for ivsExtract.
+
+
+# The current version.
+version = 0.6.21
+
+
+# If CC or MODE are not defined the following defaults will be used:
+
+CC ?= gcc
+MODE ?= release
+DYNMODE ?= dynamic
+
+
+# Determine the platform. I'm not sure that OS is used anywhere though.
+
+ifeq ($(shell uname),Linux)
+    OS = Linux
+    LINKFLAGS += -lm
+else 
+ifeq ($(shell uname),WindowsNT)
+    OS = WindowsNT
+else 
+ifeq ($(shell uname),SunOS)
+    OS = SunOS
+    LINKFLAGS += -lm
+endif 
+endif 
+endif
+
+
+# Set the common C flags.
+
+ifeq ($(CC),gcc)
+
+CFLAGS +=                            \
+	-std=c2x -pedantic               \
+	-fstrict-aliasing                \
+	-Wall                            \
+	-Wno-parentheses                 \
+	-Wformat-nonliteral              \
+	-Wformat-security                \
+	-Wformat=2                       \
+	-Wunknown-pragmas                \
+	-W                               \
+	-Wundef                          \
+	-Wshadow                         \
+	-Wpointer-arith                  \
+	-Wbad-function-cast              \
+	-Wcast-qual                      \
+	-Wcast-align                     \
+	-Wno-sign-compare                \
+	-Waggregate-return               \
+	-Wstrict-prototypes              \
+	-Wmissing-prototypes             \
+	-Wmissing-declarations           \
+	-Wredundant-decls                \
+	-Wnested-externs                 \
+	-Wdisabled-optimization          \
+	-Wno-implicit-fallthrough        \
+	-D ivsExtOS_$(OS)                \
+	-D 'ivsExtVersion="$(version)"'
+
+# The annoying gcc flag -Wparentheses is included in the -Wall flag, resulting
+# in warnings about e.g. standard use of && and || precedence. Hence it is
+# turned of explicitly, with -Wno-parentheses. However, -Wparentheses also 
+# includes some sensible warnings so it might be good to occasionally turn it
+# on.
+#   Beg the gcc people to fix their broken warnings! This issue seems fixed.
+
+#	-Winline
+#	-Wwrite-strings
+# -Wconversion gives weird warnings!
+
+else
+ifeq ($(CC),icc)
+
+CFLAGS +=                             \
+	-std=c99 -w2 -Wall -wd810         \
+	-D 'ivsExtVersion="$(version)"'
+
+
+# You might be drowned in
+# #810 warnings from icc if that particular warning isn't turned off.
+
+else
+
+endif
+endif
+
+
+# Set different flags for different compile modes. Only one mode is built.
+
+# Release flags.
+
+ifeq ($(CC),gcc)
+
+CRELEASEFLAGS +=                \
+	-O3                         \
+	-fstrict-aliasing           \
+	-ffast-math                 \
+	-fgcse                      \
+	-fexpensive-optimizations   \
+	-finline-functions          \
+	-fomit-frame-pointer        \
+	-fschedule-insns            \
+	-fschedule-insns2           \
+	-D NDEBUG                  
+	
+#	-D OpenMP -fopenmp
+# OpenMP might slow down the program a lot on things
+# that should be to some extent embarrassingly parallelizable.
+
+# What about these flags?
+#	-march=??
+#	-march=AMD???
+#	-funroll-all-loops
+#	-fsingle-precision-constant
+#	-fargument-noalias
+#	-fargument-noalias-global
+
+#	-g
+
+#	-fbranch-probabilities
+#	-fprofile-arcs
+
+# To enable profiling do:
+#   1) Compile with -fprofile-arcs.
+#   2) Run the program on a sample.
+#   3) Compile with -fbranch-probabilities.
+
+# -g is used together with e.g. cachegrind.
+
+else
+ifeq ($(CC),icc)
+
+CRELEASEFLAGS +=          \
+	-O3                   \
+	-D NDEBUG
+
+else
+
+endif
+endif
+
+
+
+# Debug flags.
+
+ifeq ($(CC),gcc)
+
+#-O
+CDEBUGFLAGS += -Og -g -fsanitize=undefined
+
+
+else
+ifeq ($(CC),icc)
+
+CDEBUGFLAGS += -O -g
+
+
+else
+
+endif
+endif
+
+
+
+# Profiling flags.
+
+ifeq ($(CC),gcc)
+
+CPROFILEFLAGS +=                \
+	-Og -pg                     \
+	-D NDEBUG                   \
+	-fstrict-aliasing           \
+	-ffast-math                 \
+	-fgcse                      \
+	-fexpensive-optimizations   \
+	-fschedule-insns            \
+	-fschedule-insns2
+
+#	-fprofile-arcs -ftest-coverage
+
+
+else
+ifeq ($(CC),icc)
+
+CPROFILEFLAGS +=          \
+	-O2 -p -g             \
+	-prof_genx
+
+else
+
+endif
+endif
+
+
+
+# Set flags depending on the compiling mode.
+
+ifeq ($(MODE),debug)
+    CFLAGS += $(CDEBUGFLAGS)
+else
+ifeq ($(MODE),profile)
+    CFLAGS += $(CPROFILEFLAGS)
+else
+ifeq ($(MODE),release)
+    CFLAGS += $(CRELEASEFLAGS)
+endif
+endif
+endif
+
+
+
+# Set flags depending on the static/dynamic flag.
+ifeq ($(DYNMODE),static)
+ifeq ($(CC),icc)
+    # What is the icc flag???
+    CFLAGS += -static
+else
+    CFLAGS += -static
+endif
+endif
+
+
+
+# AssertionLevel determines how expensive assertions are made. At 0, no
+# assertions are made and NDEBUG will be defined. At 1, NDEBUG will not be
+# defined and ordinary assertions made by assert() are made. At 2, assert2()
+# assertions, which are more expensive to perform than plain assertions, will
+# be made in addition to assert() assertions. At 3, assert3() assertions and
+# all level 2 assertions will be made. And so on...
+#   If NDEBUG is defined, no assertions will be made regardless of assertLevel
+# and AssertionLevel.
+assertLevel = 4
+
+ifeq ($(assertLevel),0)
+    CFLAGS += -D NDEBUG
+endif
+
+CFLAGS += -D AssertionLevel=$(assertLevel)
+
+# If you don't want to use getopt, uncomment the line below.
+#CFLAGS += -D NoGetopt
+
+
+
+# The directory where the object files are.
+objDir = objects
+
+# API (or non-main) library objects.
+objNames = ivsExt.o options.o common.o iso3166CountryCodes.o bitSet.o
+objs = $(foreach f, $(objNames), $(objDir)/$(f))
+
+# ivsExtract objects.
+objects = $(objDir)/ivsExtract.o $(objs)
+
+
+# Fix the default rule.
+$(objDir)/%.o: %.c
+	$(CC) -c $(CFLAGS) $< -o $@
+
+
+# Files included in a distribution.
+distFiles =     *.[ch]                                     \
+	            Makefile makefile_core                     \
+	            makefile_gcc_debug makefile_gcc_profile    \
+	            makefile_gcc_release                       \
+	            makefile_gcc_debug_static                  \
+	            makefile_gcc_profile_static                \
+	            makefile_gcc_release_static                \
+	            makefile_icc_debug makefile_icc_profile    \
+	            makefile_icc_release                       \
+	            makefile_icc_debug_static                  \
+	            makefile_icc_profile_static                \
+	            makefile_icc_release_static                \
+	            README INSTALL LICENSE                     \
+	            configure
+
+
+.PHONY: clean
+
+all: ivsExtract ;
+
+ivsExtract: $(objects)
+		$(CC) -o ivsExtract $(CFLAGS) $(objects)  \
+                                      $(LINKFLAGS)
+	            ar -rc $(objDir)/libivsext.a $(objs)
+
+api: $(objs)
+	ar -rc $(objDir)/libivsext.a $(objs)
+
+clean:
+	rm -f $(objDir)/*.o $(objDir)/libivsext.a ivsExtract  \
+              ivsExtractOneFile
+
+
+#dirs
+#	mkdir objects
+
+
+# Make a gzipped tar distribution with an ivsExtract parent directory.
+# I.e. the files are packed under an ivsExtract directory.
+dist:
+	rm -rf ivsExtract_$(version)
+	mkdir ivsExtract_$(version)
+	mkdir ivsExtract_$(version)/objects
+	cp -a $(distFiles) ivsExtract_$(version)
+	tar -cf ivsExtract_$(version).tar          \
+                ivsExtract_$(version)
+	gzip -f ivsExtract_$(version).tar
+	rm -rf ivsExtract_$(version)
+	cp -p ivsExtract_$(version).tar.gz ivsExtract.tar.gz
+
+# Make a gzipped tar distribution with an ivsExtract parent directory.
+# I.e. the files are packed under an ivsExtract directory.
+# With a fixed tar name.
+dst:
+	rm -rf ivsExtract_$(version)
+	mkdir ivsExtract_$(version)
+	mkdir ivsExtract_$(version)/objects
+	cp -a $(distFiles) ivsExtract_$(version)
+	tar -cf ivsExtract.tar          \
+                ivsExtract_$(version)
+	gzip -f ivsExtract.tar
+	rm -rf ivsExtract_$(version)
+
+# Make a gzipped flat tar distribution with no ivsExtract parent
+# directory. I.e. the files are packed at top level under no
+# ivsExtract directory.
+#   Pack the files under an ivsExtract directory instead???!!
+flatdist:
+	tar -cf ivsExtract.tar $(distFiles)
+	gzip -f ivsExtract.tar
+
+# Make a backup.
+backup: flatdist
+	mount /mnt/floppy
+	cp -p ivsExtract.tar.gz /mnt/floppy/
+
+# Make a temporary backup.
+tmpbackup:
+	tar -cf tmpivse.tar *.[ch] makefile_core
+	gzip -f tmpivse.tar
+	mount /mnt/floppy
+	cp -p tmpivse.tar.gz /mnt/floppy
+
+# Make and mail a dist.
+distmail: dist
+	echo "ivsExtract_$(version)" |                    \
+          mutt -a ivsExtract_$(version).tar.gz -s     \
+            "ivsExtract_$(version)" daniel.vallstrom@gmail.com
+
+
+# Make a freak ivsExtract version where all the c-files are put into one big file.
+onefile:
+	$(CC) $(CFLAGS) -o ivsExtractOneFile  \
+                           ivsExtractPutInOneFile.c $(LINKFLAGS)
+
+
+# Do a diff of a file $ and its backup version.
+# How to do this??? Is is possible to use a variable argument $?
+#diff:
+#	tar -xzf ivsExtract.tar.gz $ -O | diff --minimal $ -
+
+
+# Create references.
+tags:
+	 ctags *.[ch]
+
+
+# Shortcut commands bringing everything into this file for reference:
+
+gccdebug:
+	make -f makefile_gcc_debug
+
+gccprint:
+	make -f makefile_gcc_release_print
+
+gccprofile:
+	make -f makefile_gcc_profile
+
+gccrelease:
+	make -f makefile_gcc_release
+
+iccdebug:
+	make -f makefile_icc_debug
+
+iccprofile:
+	make -f makefile_icc_profile
+
+iccrelease:
+	make -f makefile_icc_release
+
+
+# Installs ivsExtract. Fix this!!
+install:
+	mkdir -p /usr/local/lib
+	cp -pu $(objDir)/libivsext.a /usr/local/lib/libivsext.a
+	mkdir -p /usr/local/include
+	cp -pu ivsExt.h /usr/local/include/ivsExt.h
+	mkdir -p /usr/local/bin
+	cp -pu ivsExtract /usr/local/bin/ivsExtract
+
+uninstall:
+	rm -f /usr/local/lib/libivsext.a
+	rm -f /usr/local/include/ivsExt.h
+	rm -f /usr/local/bin/ivsExtract
+
+
+# Generate dependencies. Use "make -s deps", at least if gcc is the default.
+# Otherwise use any gcc make file, e.g. "make -s deps -f makefile_gcc_debug".
+deps:
+	$(CC) $(CFLAGS) -MM -MT '$$(objDir)/ivsExtract.o' ivsExtract.c
+	$(CC) $(CFLAGS) -MM -MT '$$(objDir)/ivsExt.o'     ivsExt.c
+	$(CC) $(CFLAGS) -MM -MT '$$(objDir)/options.o'    options.c
+	$(CC) $(CFLAGS) -MM -MT '$$(objDir)/common.o'     common.c
+	$(CC) $(CFLAGS) -MM -MT '$$(objDir)/iso3166CountryCodes.o' iso3166CountryCodes.c
+	$(CC) $(CFLAGS) -MM -MT '$$(objDir)/bitSet.o'     bitSet.c
+
+# Dependencies. Dependencies can be generated with "make -s deps" or something
+# like that. See deps above.
+$(objDir)/ivsExtract.o: ivsExtract.c ivsExt.h iso3166CountryCodes.h \
+ bitSet.h options.h common.h
+$(objDir)/ivsExt.o: ivsExt.c ivsExt.h iso3166CountryCodes.h bitSet.h \
+ common.h compilerMacros.h
+$(objDir)/options.o: options.c options.h ivsExt.h iso3166CountryCodes.h \
+ bitSet.h common.h
+$(objDir)/common.o: common.c common.h compilerMacros.h
+$(objDir)/iso3166CountryCodes.o: iso3166CountryCodes.c \
+ iso3166CountryCodes.h
+$(objDir)/bitSet.o: bitSet.c bitSet.h iso3166CountryCodes.h

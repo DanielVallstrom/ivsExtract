@@ -1,0 +1,8 @@
+To install ivsExtract, download and unpack the tarball where you want
+the installation (do e.g. "tar -xzf ivsExtract.1.5.tar.gz"). 
+
+Then run "make -s". If you want a different compiler or
+mode than the defaults, then, instead of "make -s", use e.g.
+"make gccrelease" or "make -s -f makefile_icc_release_static".
+
+(Do a "make install" if you want to install the program wider.)

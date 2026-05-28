@@ -1,0 +1,9 @@
+# Makefile for ivsExtract using icc in debug mode.
+
+# Set the compiler.
+CC = icc
+
+# Set mode.
+MODE = debug
+
+include makefile_core

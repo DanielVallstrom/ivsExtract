@@ -1,0 +1,16 @@
+ivsExtract extracts data from Integrated Values Surveys data 
+(from the European Values Study (EVS) and the World Values 
+Survey (WVS)), in csv format.
+
+ivsExtract is distributed under the terms of the Reciprocal Public
+License RPL. See the file LICENSE.
+
+This software is OSI Certified Open Source Software.
+OSI Certified is a certification mark of the Open Source Initiative.
+
+To install ivsExtract, see the file INSTALL.
+
+Comments, suggestions, bug reports are welcome.
+
+Daniel Vallstrom
+daniel.vallstrom@gmail.com
