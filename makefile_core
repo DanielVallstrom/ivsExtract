@@ -257,9 +257,14 @@ objs = $(foreach f, $(objNames), $(objDir)/$(f))
 objects = $(objDir)/ivsExtract.o $(objs)
 
 
-# Fix the default rule.
+
+# Fix the default rule. The objects directory is created for github.
+#$(objDir)/%.o: %.c
+#	$(CC) -c $(CFLAGS) $< -o $@
 $(objDir)/%.o: %.c
+	@mkdir -p $(objDir)
 	$(CC) -c $(CFLAGS) $< -o $@
+
 
 
 # Files included in a distribution.
